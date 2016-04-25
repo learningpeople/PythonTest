@@ -1,0 +1,69 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
+class Field(object):
+    def __init__(self,name,column_type):
+        self.name=name
+        self.column_type=column_type
+    def __str__(self):
+        return '<%s:%s>' % (self.__class__.__name__,self.name)
+    #__str__相当于java中的tostring方法 self.__class__返回创建这个对象的类
+
+class StringField(Field):
+    def __init__(self,name):
+        super(StringField,self).__init__(name,'varchar(100)')
+
+class IntegerField(Field):
+    def __init__(self,name):
+        super(IntegerField,self).__init__(name,'bigint')
+
+
+class Model(dict):
+    __metaclass__=ModelMetaclass #指明用ModelMetaclass 元类来创建Model类
+      
+    def __init__(self,**kw):
+        super(Model,self).__init__(**kw) #调用父类的方法也就是dict
+    def __getattr__(self, key): # model.key
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(r"'Dict' object has no attribute '%s'" % key)
+    def __setattr__(self, key, value):
+        self[key] = value
+    def save(self):
+        fields=[]
+        params=[]
+        args = []
+        for k,v in self.__mappings__.iteritems(): #保存属性和列的对应关系
+            fields.append(v.name) #列名
+            params.append('?')
+            args.append(getattr(self,k,None)) #如果不存在返回None
+        sql = 'insert into %s (%s) values (%s)' %(self.__table__,','.join(fields),','.join(params))
+        print ('SQL:%s' %sql)
+        print ('ARGS:%s' % str(args))
+
+
+
+class ModelMetaclass(type):
+    def __new__(cls,name,bases,attrs):
+        if name=='Model':
+            return type.__new__(cls,name,bases,attrs)#不对Model类定义做任何修改
+        mappings = dict()
+        for k,v in attrs.iteritems():#k是属性名 v 是数据库列 Field
+            if isinstance(v,Field):
+                print('Found mapping :%s===>%s' % (k,v))
+                mappings[k]=v
+        for k in mappings.iterkeys():
+            attrs.pop(k) #从类属性中删除跟数据库对应的属性
+        attrs['__table__'] = name #假设类名和表名一致
+        attrs['__mappings__'] = mappings #保存属性和列的映射关系
+        return type.__new__(cls,name,bases,attrs)#调用父类的__new__方法创建类对象
+class User(Model):
+    #定义类的属性到列的映射
+    id = IntegerField('id')
+    name = StringField('username')
+    email = StringField('email')
+    password = StringField('password')
+#创建一个实例：
+u = User(id=12345,name='Michael',email='test@orm.org',password='my-pwd')
+u.save()
+
