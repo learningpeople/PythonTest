@@ -1,0 +1,6 @@
+#!/usr/bin/python
+s = open("graph_OFsuite.py").read()
+co = compile(s,"graph_OFsuite.py","exec")
+import dis
+dis.dis(co)
+
